@@ -4,7 +4,6 @@ import os
 from source.loaders import load_pdf
 from source.chunks import recursive_chunks
 from source.vectorstore import build_vectorstore
-from source.ocr import apply_ocr_if_needed
 
 from backend import state
 
