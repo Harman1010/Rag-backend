@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from backend.routers import upload,chat,reset
+from backend.routers import upload,chat,reset,auth,documents
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -11,7 +11,7 @@ app.add_middleware(
     allow_origins=[
         "http://127.0.0.1:5500",
         "http://localhost:5500",
-        "https://ai-pdf-chatbot-mauve.vercel.app/"
+        "https://ai-pdf-chatbot-mauve.vercel.app"
         
     ],
     allow_credentials=True,
@@ -22,6 +22,8 @@ app.add_middleware(
 app.include_router(upload.router)
 app.include_router(chat.router)
 app.include_router(reset.router)
+app.include_router(auth.router)
+app.include_router(documents.router)
 
 
 @app.get("/")

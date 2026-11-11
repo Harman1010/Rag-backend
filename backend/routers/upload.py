@@ -1,8 +1,10 @@
 from sqlalchemy.orm import Session
 from fastapi import Depends
 
+from backend.auth_dependencies import get_current_user
 from backend.database import get_db
 from backend.models import Document
+from backend.users import User
 
 from fastapi import APIRouter, UploadFile, File, HTTPException
 import os
@@ -22,9 +24,9 @@ router = APIRouter(
 
 
 @router.post("/")
-async def upload_pdf(file: UploadFile = File(...),db : Session = Depends(get_db)):
+async def upload_pdf(file: UploadFile = File(...),db : Session = Depends(get_db),current_user = Depends(get_current_user)):
 
-    if not file.filename.endswith(".pdf"):
+    if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(
             status_code=400,
             detail="Only PDF files are allowed."
@@ -59,6 +61,15 @@ async def upload_pdf(file: UploadFile = File(...),db : Session = Depends(get_db)
 
                 buffer.write(chunk)
 
+        with open(temp_path, "rb") as pdf_file:
+            file_signature = pdf_file.read(5)
+
+            if file_signature != b"%PDF-":
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid PDF file."
+                )
+
         # Load PDF
         documents = load_pdf(temp_path)
 
@@ -74,7 +85,7 @@ async def upload_pdf(file: UploadFile = File(...),db : Session = Depends(get_db)
 
         vectorstore.save_local(str(session_path))
 
-        document = Document(filename=file.filename,session_id=session_id,status="ready")
+        document = Document(user_id = current_user.id,filename=file.filename,session_id=session_id,status="ready")
 
         db.add(document)
         db.commit()
@@ -86,18 +97,23 @@ async def upload_pdf(file: UploadFile = File(...),db : Session = Depends(get_db)
         }
 
     except HTTPException:
+
+        db.rollback()
+        
         if session_path and session_path.exists():
             shutil.rmtree(session_path)
         raise
 
     except Exception as e:
+
+        db.rollback()
+
         if session_path and session_path.exists():
             shutil.rmtree(session_path)
 
         raise HTTPException(
             status_code=500,
-            detail=f"Error processing PDF: {str(e)}"
-        ) from e
+            detail="Error processing PDF")
 
     finally:
 
